@@ -106,7 +106,8 @@ def main():
 #
 ################################################################################
 				if args.wave:
-					audio = audio.set_frame_rate(int(audio.frame_rate / 100))
+					audio = audio.set_frame_rate(28)
+					#audio = audio.set_frame_rate(int(audio.frame_rate / 100))
 					
 					# For returning the crappy frame_rate audio
 					# print(audio.frame_rate)
@@ -116,7 +117,7 @@ def main():
 					sample = audio.get_array_of_samples()
 					audio_arr = np.array(sample).T.astype(np.float32)
 					audio_arr /= np.iinfo(sample.typecode).max
-					coef, freq = pywt.cwt(audio_arr, scales=np.arange(1, 28), wavelet='gaus1')
+					coef, freq = pywt.cwt(audio_arr, scales=np.arange(1, 29), wavelet='gaus1')
 
 					pickle_acc[-1][1].append(coef)
 
