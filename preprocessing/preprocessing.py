@@ -116,12 +116,12 @@ def main():
 					sample = audio.get_array_of_samples()
 					audio_arr = np.array(sample).T.astype(np.float32)
 					audio_arr /= np.iinfo(sample.typecode).max
-					coef, freq = pywt.cwt(audio_arr, scales=np.arange(1, 29), wavelet='gaus1')
+					coef, freq = pywt.cwt(audio_arr, scales=np.arange(1, 28), wavelet='gaus1')
 
 					pickle_acc[-1][1].append(coef)
 
 					# For looking at the pretty pictures
-					# plt.matshow(coef[:,1:28])
+					# plt.matshow(coef[:,0:27])
 					# plt.show()
 
 				print("Processing folder:", entry.name, " File number:", process_counter, end='\r')
