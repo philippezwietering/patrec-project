@@ -106,7 +106,8 @@ def main():
 #
 ################################################################################
 				if args.wave:
-					audio = audio.set_frame_rate(int(audio.frame_rate / 100))
+					audio = audio.set_frame_rate(28)
+					#audio = audio.set_frame_rate(int(audio.frame_rate / 100))
 					
 					# For returning the crappy frame_rate audio
 					# print(audio.frame_rate)
@@ -121,7 +122,7 @@ def main():
 					pickle_acc[-1][1].append(coef)
 
 					# For looking at the pretty pictures
-					# plt.matshow(coef[:,1:28])
+					# plt.matshow(coef[:,0:27])
 					# plt.show()
 
 				print("Processing folder:", entry.name, " File number:", process_counter, end='\r')
