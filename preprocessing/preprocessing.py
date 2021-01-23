@@ -10,6 +10,9 @@ from pathlib import Path
 from pydub import AudioSegment
 # import librosa
 
+SAMPLE_RATE = 1000
+WAVE_HEIGHT = 128
+
 """
 Used for checking if paths exist in the argument parsing
 """
@@ -70,7 +73,6 @@ def main():
 	unprocessed_files = []
 	process_counter = 0
 	folder_counter = 0
-	pickle_acc = []
 
 	for entry in origin_path.iterdir():
 		if entry.is_file():
@@ -82,7 +84,7 @@ def main():
 				break
 			folder_counter += 1
 
-			pickle_acc.append([entry.name, []])
+			pickle_acc = (entry.name, [])
 
 			sub_dest = destination_path / entry.name
 			sub_dest.mkdir(exist_ok=True)
@@ -106,7 +108,7 @@ def main():
 #
 ################################################################################
 				if args.wave:
-					audio = audio.set_frame_rate(28)
+					audio = audio.set_frame_rate(SAMPLE_RATE)
 					#audio = audio.set_frame_rate(int(audio.frame_rate / 100))
 					
 					# For returning the crappy frame_rate audio
@@ -117,24 +119,26 @@ def main():
 					sample = audio.get_array_of_samples()
 					audio_arr = np.array(sample).T.astype(np.float32)
 					audio_arr /= np.iinfo(sample.typecode).max
-					coef, freq = pywt.cwt(audio_arr, scales=np.arange(1, 29), wavelet='gaus1')
+					coef, freq = pywt.cwt(audio_arr, scales=np.arange(1, WAVE_HEIGHT+1), wavelet='gaus1')
 
-					pickle_acc[-1][1].append(coef)
+					pickle_acc[1].append(coef)
 
 					# For looking at the pretty pictures
-					# plt.matshow(coef[:,0:27])
+					# plt.matshow(coef[:,0:1000])
 					# plt.show()
 
 				print("Processing folder:", entry.name, " File number:", process_counter, end='\r')
+
+			if args.wave and pickle_acc:
+				print(f"\nWriting {entry.name} to pickle")
+				with open(destination_path / ("bird_sound_data_" + entry.name + ".pkl"), "wb") as f:
+					pickle.dump(pickle_acc, f)
+
 
 	if unprocessed_files:
 		print("If you also want these files processed, put them in a subdirectory.")
 	for filename in unprocessed_files:
 		print(f"\t{filename}")
-
-	if args.wave and pickle_acc:
-		with open(destination_path / "bird_sound_data.pkl", "wb") as f:
-			pickle.dump(pickle_acc, f)
 
 if __name__ == "__main__":
 	main()
