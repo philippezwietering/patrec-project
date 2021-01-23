@@ -23,17 +23,21 @@ with (open("bird_sound_data.pkl", "rb")) as openfile:
 
 train_images = []
 train_labels = []
+width = 250
+height = 256
+EPOCHS = 5
+num_examples_to_generate = 9
 
 for outer_layer in objects:
 	for inner_layer in outer_layer:
 		label = inner_layer[0]
 		for i in range(1, len(inner_layer)):
 			for soundfile in inner_layer[i]:
-				num_images = int((len(soundfile[0]) - (len(soundfile[0]) % 28)) / 28)
+				num_images = len(soundfile[0]) // width
 				for j in range(num_images):
-					index1 = j*28
-					index2 = (j+1)*28
-					train_images.append(soundfile[0:28, index1:index2])
+					index1 = j*width
+					index2 = (j+1)*width
+					train_images.append(soundfile[0:width, index1:index2])
 					train_labels.append(label)
 
 # MNIST has 60'000 training images, each of size 28x28
@@ -43,7 +47,7 @@ for outer_layer in objects:
 train_images = np.array(train_images)
 train_labels = np.array(train_labels)
 # parse data to floats:
-train_images = train_images.reshape(train_images.shape[0], 28, 28, 1).astype('float32')
+train_images = train_images.reshape(train_images.shape[0], height, width, 1).astype('float32')
 # TODO: find min, max of our data to normalize to [-1,1]
 #train_images = (train_images - 127.5) / 127.5 # Normalize the images to [-1, 1]
 
@@ -55,25 +59,25 @@ train_dataset = tf.data.Dataset.from_tensor_slices(train_images).shuffle(BUFFER_
 
 def make_generator_model():
 	model = tf.keras.Sequential()
-	model.add(layers.Dense(7*7*256, use_bias=False, input_shape=(100,)))
+	model.add(layers.Dense(height//4*width//4*256, use_bias=False, input_shape=(100,)))
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
-	model.add(layers.Reshape((7, 7, 256)))
-	assert model.output_shape == (None, 7, 7, 256) # Note: None is the batch size
+	model.add(layers.Reshape((height//4, width//4, 256)))
+	assert model.output_shape == (None, height//4, width//4, 256) # Note: None is the batch size
 
 	model.add(layers.Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False))
-	assert model.output_shape == (None, 7, 7, 128)
+	assert model.output_shape == (None, height//4, width//4, 128)
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
 	model.add(layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
-	assert model.output_shape == (None, 14, 14, 64)
+	assert model.output_shape == (None, height//2, width//2, 64)
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
 	model.add(layers.Conv2DTranspose(1, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
-	assert model.output_shape == (None, 28, 28, 1)
+	assert model.output_shape == (None, height, width, 1)
 
 	return model
 
@@ -87,7 +91,7 @@ generator = make_generator_model()
 def make_discriminator_model():
 	model = tf.keras.Sequential()
 	model.add(layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same',
-									 input_shape=[28, 28, 1]))
+									 input_shape=[height, width, 1]))
 	model.add(layers.LeakyReLU())
 	model.add(layers.Dropout(0.3))
 
@@ -126,9 +130,9 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 generator=generator,
 								 discriminator=discriminator)
 
-EPOCHS = 1
+
 noise_dim = 100
-num_examples_to_generate = 16
+
 
 # We will reuse this seed overtime (so it's easier)
 # to visualize progress in the animated GIF)
@@ -195,4 +199,4 @@ def generate_and_save_images(model, epoch, test_input):
 
 train(train_dataset, EPOCHS)
 
-checkpoint.restore(tf.train.latest_checkpoint('/onzin'))
+checkpoint.restore(tf.train.latest_checkpoint('checkpoint_dir'))

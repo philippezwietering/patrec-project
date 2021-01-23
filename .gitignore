@@ -128,3 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 DCGAN/bird_sound_data.pkl
+DCGAN/training_checkpoints/checkpoint
