@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[59]:
-
-
 import os
 import glob
 import cv2
@@ -18,9 +15,6 @@ from keras.applications.inception_v3 import preprocess_input
 # from keras.applications.vgg19 import preprocess_input
 
 
-# In[35]:
-
-
 # Read in folder containing generated images
 def read_file(img_dir_path):
     folder_path = img_dir_path
@@ -31,15 +25,8 @@ def read_file(img_dir_path):
         print(filename)
     return imgs  
 
-
-# In[34]:
-
-
 def create_img_batch(imgs):
     return np.stack(tuple(imgs))
-
-
-# In[61]:
 
 
 def calculate_inception_score(images, n_split=2, eps=1E-16):
@@ -76,9 +63,6 @@ def calculate_inception_score(images, n_split=2, eps=1E-16):
         return is_avg, is_std
 
 
-# In[53]:
-
-
 # calculate frechet inception distance
 def calculate_fid(images1, images2):
     model = InceptionV3(include_top=False, pooling='avg', input_shape=(400,400,3))
@@ -102,11 +86,8 @@ def calculate_fid(images1, images2):
     return fid
 
 
-# In[64]:
-
-
 def main():
-    img_folder = './generated/'
+    img_folder = './generated_images/'
     imgs = read_file(img_folder) 
     images = create_img_batch(imgs)
 
@@ -116,9 +97,6 @@ def main():
     print("---------------")
     fid = calculate_fid(images, images)
     print('FID score: %.3f' % fid)
-
-
-# In[65]:
 
 
 if __name__ == '__main__':
