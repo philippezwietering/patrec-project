@@ -14,6 +14,7 @@ from keras.applications.inception_v3 import preprocess_input
 # from keras.applications.vgg19 import VGG19
 # from keras.applications.vgg19 import preprocess_input
 
+from ndb import *
 
 # Read in folder containing generated images
 def read_file(img_dir_path):
@@ -86,6 +87,30 @@ def calculate_fid(images1, images2):
     return fid
 
 
+# def sample_from(samples, number_to_use):
+#     print(samples.shape)
+#     print(number_to_use)
+#     assert samples.shape[0] >= number_to_use
+#     rand_order = np.random.permutation(samples.shape[0])
+#     return samples[rand_order[:number_to_use], :]
+
+# Visualize the missing bins
+# def visualize_bins(bin_centers, is_different):
+#     k = bin_centers.shape[0]
+#     n_cols = 10
+#     n_rows = (k+n_cols-1)//n_cols
+#     for i in range(k):
+#         plt.subplot(n_rows, n_cols, i+1)
+#         plt.imshow(bin_centers[i, :].reshape([400, 400, 3]))
+#         if is_different[i]:
+#             plt.plot([0, 399], [0, 399], 'r', linewidth=2)
+#         plt.axis('off')
+
+def calculate_bins(train_samples, test_samples, k):
+    ndb = NDB(training_data=train_samples, number_of_bins=k, whitening=True)
+    ndb.evaluate(test_samples, model_label='Test')
+    # ndb.plot_results(models_to_plot=['Test']) gives errors
+
 def main():
     img_folder = './generated_images/'
     imgs = read_file(img_folder) 
@@ -95,9 +120,24 @@ def main():
     is_avg, is_std = calculate_inception_score(images)
     print('Inception score avg:', is_avg, "Inception score std:", is_std)
     print("---------------")
+    # calculate fid
     fid = calculate_fid(images, images)
     print('FID score: %.3f' % fid)
 
+    batch = []
+    for i in imgs:
+        batch.append(i.ravel())
+    images_ndb = np.array(batch)
+
+    num_bins = 2
+    n_train = round(images_ndb.shape[0] * 0.7)
+
+    rand_order = np.random.permutation(images_ndb.shape[0])
+    train_samples = images_ndb[rand_order[:n_train]]
+    test_samples = images_ndb[rand_order[n_train:]]
+
+    # calculate NDB
+    calculate_bins(train_samples, test_samples, num_bins)
 
 if __name__ == '__main__':
     main()
