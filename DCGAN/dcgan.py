@@ -9,37 +9,40 @@ from tensorflow.keras import layers
 import time
 from IPython import display
 import pickle
+from pathlib import Path
 
 # TODO: reference original script
 
 #print(tf.__version__) # check we indeed have tensorflow version 2.4
 objects = []
-with (open("bird_sound_data.pkl", "rb")) as openfile:
-	while True:
-		try:
-			objects.append(pickle.load(openfile))
-		except EOFError:
-			break
+origin_path = Path("./")
+for filename in origin_path.glob("*.pkl"):
+	with (open(filename, "rb")) as openfile:
+		while True:
+			try:
+				objects.append(pickle.load(openfile))
+			except EOFError:
+				break
 
 train_images = []
 train_labels = []
-width = 250
-height = 256
-EPOCHS = 5
-num_examples_to_generate = 9
+width = 64
+height = 32
+EPOCHS = 10
+num_examples_to_generate = 1
 
-for outer_layer in objects:
-	for inner_layer in outer_layer:
-		label = inner_layer[0]
-		for i in range(1, len(inner_layer)):
-			for soundfile in inner_layer[i]:
-				num_images = len(soundfile[0]) // width
-				for j in range(num_images):
-					index1 = j*width
-					index2 = (j+1)*width
-					train_images.append(soundfile[0:width, index1:index2])
-					train_labels.append(label)
+for inner_layer in objects:
+	label = inner_layer[0]
+	for i in range(1, len(inner_layer)):
+		for soundfile in inner_layer[i]:
+			num_images = len(soundfile[0]) // width
+			for j in range(num_images):
+				index1 = j*width
+				index2 = (j+1)*width
+				train_images.append(soundfile[0:width, index1:index2])
+				train_labels.append(label)
 
+print(f"=========== Amount of training images: {len(train_labels)} ===========")
 # MNIST has 60'000 training images, each of size 28x28
 # replace code below by loading our bird spectrograms of size 28x28
 #(train_images, train_labels), (_, _) = tf.keras.datasets.mnist.load_data()
@@ -59,7 +62,7 @@ train_dataset = tf.data.Dataset.from_tensor_slices(train_images).shuffle(BUFFER_
 
 def make_generator_model():
 	model = tf.keras.Sequential()
-	model.add(layers.Dense(height//4*width//4*256, use_bias=False, input_shape=(100,)))
+	model.add(layers.Dense((height//4)*(width//4)*256, use_bias=False, input_shape=(100,)))
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
@@ -160,6 +163,7 @@ def train_step(images):
 	discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
 def train(dataset, epochs):
+	print("========= Starting first epoch ============")
 	for epoch in range(epochs):
 		start = time.time()
 
@@ -170,9 +174,9 @@ def train(dataset, epochs):
 		display.clear_output(wait=True)
 		generate_and_save_images(generator, epoch + 1, seed)
 
-		# Save the model every 15 epochs
-		if (epoch + 1) % 15 == 0:
-			checkpoint.save(file_prefix = checkpoint_prefix)
+		# Save the model every 5 epochs
+		#if (epoch + 1) % 5 == 0:
+		checkpoint.save(file_prefix = checkpoint_prefix)
 
 		print ('Time for epoch {} is {} sec'.format(epoch + 1, time.time()-start))
 
@@ -188,7 +192,7 @@ def generate_and_save_images(model, epoch, test_input):
 	fig = plt.figure(figsize=(4,4))
 
 	for i in range(predictions.shape[0]):
-		plt.subplot(4, 4, i+1)
+		#plt.subplot(4, 4, i+1)
 		#plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')
 		plt.imshow(predictions[i, :, :, 0], cmap='viridis')
 		plt.axis('off')
@@ -199,4 +203,4 @@ def generate_and_save_images(model, epoch, test_input):
 
 train(train_dataset, EPOCHS)
 
-checkpoint.restore(tf.train.latest_checkpoint('checkpoint_dir'))
+checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
