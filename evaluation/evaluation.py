@@ -83,7 +83,7 @@ def calculate_fid(images1, images2):
     if np.iscomplexobj(covmean):
         covmean = covmean.real
     # calculate score
-    fid = ssdiff + trace(sigma1 + sigma2 - 2.0 * covmean)
+    fid = ssdiff + np.trace(sigma1 + sigma2 - 2.0 * covmean)
     return fid
 
 
