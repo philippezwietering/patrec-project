@@ -219,7 +219,7 @@ checkpoint_dir = 'C:/Path/To/training_checkpoints' # path to folder with checkpo
 checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
 
 # Change num_examples_to_generate to change number of generated images
-generated_imgs = checkpoint.generator(seed, training=False)
+generated_imgs = checkpoint.generator(seed, training=False).numpy()
 
 # Upsample images to be at least 75x75 for evaluation (InceptionV3)
 generated_imgs_upsampled = scale_images(generated_imgs, (3*height,3*width,3))
