@@ -10,6 +10,7 @@ import time
 from IPython import display
 import pickle
 from pathlib import Path
+from skimage.transform import resize
 
 # TODO: reference original script
 
@@ -26,10 +27,10 @@ for filename in origin_path.glob("*.pkl"):
 
 train_images = []
 train_labels = []
-width = 64
+width = 128
 height = 32
 EPOCHS = 10
-num_examples_to_generate = 1
+num_examples_to_generate = 10
 
 for inner_layer in objects:
 	label = inner_layer[0]
@@ -185,22 +186,40 @@ def train(dataset, epochs):
 	generate_and_save_images(generator, epochs, seed)
 
 def generate_and_save_images(model, epoch, test_input):
-	# Notice `training` is set to False.
-	# This is so all layers run in inference mode (batchnorm).
-	predictions = model(test_input, training=False)
+    # Notice `training` is set to False.
+    # This is so all layers run in inference mode (batchnorm).
+    predictions = model(test_input, training=False)
+    
+    fig = plt.figure(figsize=(4,4))
+    
+    for i in range(predictions.shape[0]):
+        #plt.subplot(4, 4, i+1)
+        #plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')
+        plt.imshow(predictions[i, :, :, 0], cmap='viridis')
+        plt.axis('off')
+    
+    plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
+    # plt.show()
 
-	fig = plt.figure(figsize=(4,4))
+# scale an array of images to a new size
+def scale_images(images, new_shape):
+	images_list = list()
+	for image in images:
+		# resize with nearest neighbor interpolation
+		new_image = resize(image, new_shape, 0)
+		# store
+		images_list.append(new_image)
+	return np.asarray(images_list)
 
-	for i in range(predictions.shape[0]):
-		#plt.subplot(4, 4, i+1)
-		#plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')
-		plt.imshow(predictions[i, :, :, 0], cmap='viridis')
-		plt.axis('off')
 
-	plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
-	#plt.show()
+# train(train_dataset, EPOCHS)
 
-
-train(train_dataset, EPOCHS)
-
+# .restore function requires absolute path for some reason
+checkpoint_dir = 'C:/Path/To/training_checkpoints' # path to folder with checkpoints
 checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+
+# Change num_examples_to_generate to change number of generated images
+generated_imgs = checkpoint.generator(seed, training=False)
+
+# Upsample images to be at least 75x75 for evaluation (InceptionV3)
+generated_imgs_upsampled = scale_images(generated_imgs, (3*height,3*width,3))
