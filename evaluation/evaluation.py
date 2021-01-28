@@ -30,7 +30,7 @@ from ndb import *
 #     return np.stack(tuple(imgs))
 
 
-def calculate_inception_score(images, n_split=10, eps=1E-16):
+def calculate_inception_score(images, n_split=5, eps=1E-16):
         # load inception v3 model
         model = InceptionV3(include_top=False, weights='imagenet')
         
