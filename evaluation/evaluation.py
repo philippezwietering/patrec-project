@@ -13,6 +13,10 @@ from keras.applications.inception_v3 import preprocess_input
 # from keras.applications.resnet50 import ResNet50
 # from keras.applications.vgg19 import VGG19
 # from keras.applications.vgg19 import preprocess_input
+from skimage.transform import resize
+from ndb import *
+import pickle
+from pathlib import Path
 
 from ndb import *
 
@@ -62,6 +66,15 @@ def calculate_inception_score(images, n_split=5, eps=1E-16):
         # average across images
         is_avg, is_std = np.mean(scores), np.std(scores)
         return is_avg, is_std
+
+def scale_images(images, new_shape):
+    images_list = list()
+    for image in images:
+        # resize with nearest neighbor interpolation
+        new_image = resize(image, new_shape, 0)
+        # store
+        images_list.append(new_image)
+    return np.asarray(images_list)
 
 
 # calculate frechet inception distance
