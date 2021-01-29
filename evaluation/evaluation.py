@@ -143,7 +143,7 @@ def main():
 
     train_images = []
     train_labels = []
-    width = 64
+    width = 128
     height = 32
     EPOCHS = 10
     num_examples_to_generate = 1

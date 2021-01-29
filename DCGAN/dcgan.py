@@ -30,7 +30,7 @@ train_labels = []
 width = 128
 height = 32
 EPOCHS = 10
-num_examples_to_generate = 10
+num_examples_to_generate = 100
 
 for inner_layer in objects:
 	label = inner_layer[0]
