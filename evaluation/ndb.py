@@ -166,7 +166,6 @@ class NDB:
         plt.ylim((0.0, min(ymax, np.max(self.bin_proportions)*4.0)))
         plt.grid(True)
         plt.title('Binning Proportions Evaluation Results for {} bins (NDB : JS)'.format(K))
-        plt.show()
 
     def __calculate_bin_proportions(self, samples):
         if self.bin_centers is None:
