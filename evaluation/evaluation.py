@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[88]:
+
+
 import os
 import glob
 import cv2
@@ -10,40 +13,105 @@ from math import floor
 
 from keras.applications.inception_v3 import InceptionV3
 from keras.applications.inception_v3 import preprocess_input
-# from keras.applications.resnet50 import ResNet50
-# from keras.applications.vgg19 import VGG19
-# from keras.applications.vgg19 import preprocess_input
+
 from skimage.transform import resize
 from ndb import *
 import pickle
 from pathlib import Path
-
-from ndb import *
-
-# # Read in folder containing generated images
-# def read_file(img_dir_path):
-#     folder_path = img_dir_path
-#     imgs = []
-#     for filename in glob.glob(os.path.join(folder_path, '*.png')):
-#         img = cv2.imread(filename)
-#         imgs.append(img)
-#         print(filename)
-#     return imgs
-#
-# def create_img_batch(imgs):
-#     return np.stack(tuple(imgs))
+import tensorflow as tf
+from tensorflow.keras import datasets, layers, models
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+from tensorflow import keras
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
 
 
-def calculate_inception_score(images, n_split=5, eps=1E-16):
-        # load inception v3 model
-        model = InceptionV3(include_top=False, weights='imagenet')
-        
-        # convert from uint8 to float32
-        processed = images.astype('float32')
-        # pre-process raw images for inception v3 model
-        processed = preprocess_input(processed)
+# In[89]:
+
+
+def simple_cnn(width):
+    model = models.Sequential()
+    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, width, 3)))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(layers.Flatten())
+    model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Dense(10, activation='relu'))
+    model.compile(optimizer='adam',
+                  loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                  metrics=['accuracy'])
+    return model
+
+
+# In[90]:
+
+
+def train_model(width, model):
+    objects = []
+    origin_path = Path("./")
+    for filename in origin_path.glob("*.pkl"):
+        with (open(filename, "rb")) as openfile:
+            while True:
+                try:
+                    objects.append(pickle.load(openfile))
+                except EOFError:
+                    break
+
+    train_images = []
+    train_labels = []
+    width = width
+    height = 32
+
+    for inner_layer in objects:
+        label = inner_layer[0]
+        for i in range(1, len(inner_layer)):
+            for soundfile in inner_layer[i]:
+                num_images = len(soundfile[0]) // width
+                for j in range(num_images):
+                    index1 = j*width
+                    index2 = (j+1)*width
+                    train_images.append(soundfile[0:width, index1:index2])
+                    train_labels.append(label)  
+    images = np.array(train_images)
+#     train_images = scale_images(images, (32, width, 3))
+
+#     with open('training_data/scaled_train_images_'+str(width)+'.pkl', 'wb') as f:
+#         pickle.dump(train_images, f)
+#     print('Done scaling with RGB channel')
+    with open('training_data/scaled_training_data'+str(width)+'.pkl', 'rb') as f:
+        train_images = pickle.load(f)
+    train_labels = np.array(train_labels)
+    label_encoder = LabelEncoder()
+    train_labels = np.array(label_encoder.fit_transform(train_labels))
+    X_train, X_test, y_train, y_test = train_test_split(train_images, train_labels, test_size=0.33, random_state=42)
+    history = model.fit(X_train, y_train, epochs=5, validation_data=(X_test, y_test))
+    model.save('trained_model'+str(width)+'v2.h5')
+
+
+# In[91]:
+
+
+model_128 = simple_cnn(128)
+model_512 = simple_cnn(512)
+train_model(128, model_128)
+train_model(512, model_512)
+
+
+# In[119]:
+
+
+def calculate_inception_score(model, images, n_split=5, eps=1E-16):
+#        load inception v3 model
+#         model = InceptionV3(include_top=False) 
+#         # convert from uint8 to float32
+#         processed = images.astype('float32')
+# #         # pre-process raw images for inception v3 model
+#         processed = preprocess_input(processed)
         # predict class probabilities for images
-        yhat = model.predict(processed)
+        yhat = model.predict(images)
         # enumerate splits of images/predictions
         scores = list()
         n_part = floor(images.shape[0] / n_split)
@@ -51,10 +119,13 @@ def calculate_inception_score(images, n_split=5, eps=1E-16):
             # retrieve p(y|x)
             ix_start, ix_end = i * n_part, i * n_part + n_part
             p_yx = yhat[ix_start:ix_end]
+
             # calculate p(y)
             p_y = np.expand_dims(p_yx.mean(axis=0), 0)
+            
             # calculate KL divergence using log probabilities
             kl_d = p_yx * (np.log(p_yx + eps) - np.log(p_y + eps))
+
             # sum over classes
             sum_kl_d = kl_d.sum(axis=1)
             # average over images
@@ -67,21 +138,12 @@ def calculate_inception_score(images, n_split=5, eps=1E-16):
         is_avg, is_std = np.mean(scores), np.std(scores)
         return is_avg, is_std
 
-def scale_images(images, new_shape):
-    images_list = list()
-    for image in images:
-        # resize with nearest neighbor interpolation
-        new_image = resize(image, new_shape, 0)
-        # store
-        images_list.append(new_image)
-    return np.asarray(images_list)
+
+# In[93]:
 
 
 # calculate frechet inception distance
-def calculate_fid(images1, images2):
-    model = InceptionV3(include_top=False, pooling='avg', input_shape=(96, 384, 3))
-    images1 = preprocess_input(images1)    
-    images2 = preprocess_input(images2)    
+def calculate_fid(model, images1, images2):
     # calculate activations
     act1 = model.predict(images1)
     act2 = model.predict(images2)
@@ -98,6 +160,9 @@ def calculate_fid(images1, images2):
     # calculate score
     fid = ssdiff + np.trace(sigma1 + sigma2 - 2.0 * covmean)
     return fid
+
+
+# In[94]:
 
 
 # def sample_from(samples, number_to_use):
@@ -118,85 +183,117 @@ def calculate_fid(images1, images2):
 #         if is_different[i]:
 #             plt.plot([0, 399], [0, 399], 'r', linewidth=2)
 #         plt.axis('off')
-
-def calculate_bins(train_samples, test_samples, k):
-    ndb = NDB(training_data=train_samples, number_of_bins=k, whitening=True)
+        
+def calculate_bins(train_samples, test_samples, k, fname):
+    ndb = NDB(training_data=train_samples, number_of_bins=k)
     ndb.evaluate(test_samples, model_label='Test')
-    # ndb.plot_results(models_to_plot=['Test']) gives errors
+    plt.figure()
+    ndb.plot_results()
+    plt.savefig(fname+'bins'+str(k)+'.png')
+    plt.show()
+
+
+# In[95]:
+
+
+# scale an array of images to a new size
+def scale_images(images, new_shape):
+    images_list = list()
+    for image in images:
+        # resize with nearest neighbor interpolation
+        new_image = resize(image, new_shape, 0)
+        # store
+        images_list.append(new_image)
+    return np.asarray(images_list)
+
+
+# In[96]:
+
+
+def bin_preprocessing(images):
+    batch = []
+    for i in images:
+        batch.append(i.ravel())
+    return np.array(batch)
+
+
+# In[134]:
 
 
 def main():
-    #     img_folder = './generated_images/'
-    #     imgs = read_file(img_folder)
-    #     images = create_img_batch(imgs)
-    objects = []
-    origin_path = Path("./")
-    for filename in origin_path.glob("*.pkl"):
-        with (open(filename, "rb")) as openfile:
-            while True:
-                try:
-                    objects.append(pickle.load(openfile))
-                except EOFError:
-                    break
-    with (open('./generated_images/generated_images.pkl', "rb")) as openfile:
-        test_images = pickle.load(openfile)
+    
+    with (open('./generated_images/generated_imgs_128_niet_upsampled.pkl', "rb")) as openfile:
+        test_images128 = scale_images(pickle.load(openfile), (32, 128, 3))
+    with (open('./generated_images/generated_imgs_512_niet_upsampled.pkl', "rb")) as openfile:
+        test_images512 = scale_images(pickle.load(openfile), (32, 512, 3))
+    with (open('./training_data/scaled_training_data128.pkl', "rb")) as openfile:
+        train_images128 = pickle.load(openfile)
+    with (open('./training_data/scaled_training_data512.pkl', "rb")) as openfile:
+        train_images512 = pickle.load(openfile)
+        
+    model128v2 = keras.models.load_model('trained_model128v2.h5')   
+    model512v2 = keras.models.load_model('trained_model512v2.h5') 
+    
+    model128 = keras.models.load_model('trained_model128.h5')   
+    model512 = keras.models.load_model('trained_model512.h5') 
 
-    train_images = []
-    train_labels = []
-    width = 128
-    height = 32
-    EPOCHS = 10
-    num_examples_to_generate = 1
-
-    for inner_layer in objects:
-        label = inner_layer[0]
-        for i in range(1, len(inner_layer)):
-            for soundfile in inner_layer[i]:
-                num_images = len(soundfile[0]) // width
-                for j in range(num_images):
-                    index1 = j * width
-                    index2 = (j + 1) * width
-                    train_images.append(soundfile[0:width, index1:index2])
-                    train_labels.append(label)
-    train_images = np.array(train_images)
-    #train_labels = np.array(train_labels)
-    # parse data to floats:
-    train_images = train_images.reshape(train_images.shape[0], height, width, 1).astype('float32')
-    print('Done')
-    train_images_ = scale_images(train_images[:10000], (96, 384, 3))
-    # test_images = scale_images(images, (96, 384, 3))
-    # print(train_images_.shape)
-    #print(test_images.shape)
-    # train_images = np.stack((train_images,)*3, axis=-1)
-    # print(train_images.shape)
-    # train_samples = create_img_batch(train_images)
-    # print(train_samples.shape)
-    # calculate inception score
-    is_avg, is_std = calculate_inception_score(train_images_)
-    is_avg_t, is_std_t = calculate_inception_score(test_images)
-    print('TRAIN Inception score avg:', is_avg, "Inception score std:", is_std)
-    print('TEST Inception score avg:', is_avg_t, "Inception score std:", is_std_t)
+        
+   # calculate inception score for model with positive probs capped [0,1]
+    is_avg128v2, is_std128v2 = calculate_inception_score(model128v2, train_images128)
+    is_avg_t128v2, is_std_t128v2 = calculate_inception_score(model128v2, test_images128)
+    is_avg512v2, is_std512v2 = calculate_inception_score(model512v2, train_images512)
+    is_avg_t512v2, is_std_t512v2 = calculate_inception_score(model512v2, test_images512)
+    
+    print('TRAIN128v2 Inception score avg:', is_avg128v2, "Inception score std:", is_std128v2)
+    print('TEST128v2 Inception score avg:', is_avg_t128v2, "Inception score std:", is_std_t128v2)
+    print('TRAIN128v2 Inception score avg:', is_avg512v2, "Inception score std:", is_std512v2)
+    print('TEST128v2 Inception score avg:', is_avg_t512v2, "Inception score std:", is_std_t512v2)
     print("---------------")
-    fid = calculate_fid(train_images_, test_images)
-    print('FID score: %.3f' % fid)
+    fid128v2 = calculate_fid(model128v2, train_images128, test_images128)
+    print('FID score 128v2: %.3f' % fid128v2)
+    fid512v2 = calculate_fid(model512v2, train_images512, test_images512)
+    print('FID score 512v2: %.3f' % fid512v2)
+    print("---------------")
+    
+    # Model without cap
+    
+    is_avg128, is_std128 = calculate_inception_score(model128, train_images128)
+    is_avg_t128, is_std_t128 = calculate_inception_score(model128, test_images128)
+    is_avg512, is_std512 = calculate_inception_score(model512, train_images512)
+    is_avg_t512, is_std_t512 = calculate_inception_score(model512, test_images512)
 
-    batch = []
-    for i in train_images_:
-        batch.append(i.ravel())
-    images_ndb = np.array(batch)
+    print('TRAIN128 Inception score avg:', is_avg128, "Inception score std:", is_std128)
+    print('TEST128 Inception score avg:', is_avg_t128, "Inception score std:", is_std_t128)
+    print('TRAIN128 Inception score avg:', is_avg512, "Inception score std:", is_std512)
+    print('TEST128 Inception score avg:', is_avg_t512, "Inception score std:", is_std_t512)
+    print("---------------")
+    fid128 = calculate_fid(model128, train_images128, test_images128)
+    print('FID score 128: %.3f' % fid128)
+    fid512 = calculate_fid(model512, train_images512, test_images512)
+    print('FID score 512: %.3f' % fid512)
+    print("---------------")
 
-    for i in test_images:
-        batch.append(i.ravel())
-    test_images = np.array(batch)
+#     train_bins128 = bin_preprocessing(train_images128)
+#     test_bins128 = bin_preprocessing(test_images128) # 2000 generated samples
+#     train_bins512 = bin_preprocessing(train_images512)
+#     test_bins512 = bin_preprocessing(test_images512) # 200 generated samples
+    
+#     calculate_bins(train_bins128, test_bins128, 10, 'ndb128') # Results for 2000 samples from Test: NDB = 9 NDB/K = 0.9 , JS = 0.014024162216545719
+#     calculate_bins(train_bins512, test_bins512, 10, 'ndb512') # Results for 200 samples from Test: NDB = 1 NDB/K = 0.1 , JS = 0.017794418726491
+    
+#     calculate_bins(train_bins128, test_bins128, 50, 'ndb128') # Results for 2000 samples from Test: NDB = 18 NDB/K = 0.36 , JS = 0.11688896580014627
+#     calculate_bins(train_bins512, test_bins512, 50, 'ndb512') # Results for 200 samples from Test: NDB = 2 NDB/K = 0.04 , JS = 0.04331794883881373
+    
+#     calculate_bins(train_bins128, test_bins128, 100, 'ndb128') # Results for 2000 samples from Test: NDB = 21 NDB/K = 0.21 , JS = 0.13734317154549774
+#     calculate_bins(train_bins512, test_bins512, 100, 'ndb512') # Results for 200 samples from Test: NDB = 3 NDB/K = 0.03 , JS = 0.06817458863922093   
+    
+#     calculate_bins(train_bins128, test_bins128, 200, 'ndb128') # Results for 2000 samples from Test: NDB = 29 NDB/K = 0.145 , JS = 0.1978833951840465
+#     calculate_bins(train_bins512, test_bins512, 200, 'ndb512') # Results for 200 samples from Test: NDB = 5 NDB/K = 0.025 , JS = 0.09931714987806105   
+       
 
-    num_bins = 5
-    #     n_train = round(images_ndb.shape[0]*0.7)
 
-    #     rand_order = np.random.permutation(images_ndb.shape[0])
-    #     train_samples = images_ndb[rand_order[:n_train]]
-    #     test_samples = images_ndb[rand_order[n_train:]]
+# In[135]:
 
-    calculate_bins(images_ndb, test_images, num_bins)
 
 if __name__ == '__main__':
     main()
