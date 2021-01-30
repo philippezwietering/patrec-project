@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[212]:
+# In[19]:
 
 
 import os
@@ -27,7 +27,7 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
 
-# In[213]:
+# In[43]:
 
 
 def simple_cnn(width):
@@ -39,36 +39,18 @@ def simple_cnn(width):
     model.add(layers.Conv2D(64, (3, 3), activation='relu'))
     model.add(layers.Flatten())
     model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(10))
+    model.add(layers.Dense(10, activation='relu'))
+    model.add(layers.Dense(3, activation='softmax'))
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])
     return model
 
 
-# In[214]:
+# In[21]:
 
 
-def simple_cnnv2(width):
-    model = models.Sequential()
-    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, width, 3)))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-    model.add(layers.Flatten())
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(10, activation='softmax'))
-    model.compile(optimizer='adam',
-                  loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-                  metrics=['accuracy'])
-    return model
-
-
-# In[215]:
-
-
-def train_model(width, model, version):
+def train_model(width, model):
     objects = []
     origin_path = Path("./")
     for filename in origin_path.glob("*.pkl"):
@@ -108,9 +90,10 @@ def train_model(width, model, version):
     label_encoder = LabelEncoder()
     train_labels = np.array(label_encoder.fit_transform(train_labels))
     X_train, X_test, y_train, y_test = train_test_split(train_images, train_labels, test_size=0.33, random_state=42)
+    
     history = model.fit(X_train, y_train, epochs=10, validation_data=(X_test, y_test))
 
-    model.save('trained_model'+str(width)+version+'.h5')
+    model.save('trained_model'+str(width)+'.h5')
     
     plt.figure()  
     plt.plot(history.history['accuracy'], label='accuracy')
@@ -119,38 +102,27 @@ def train_model(width, model, version):
     plt.ylabel('Accuracy')
     plt.ylim([0.5, 1])
     plt.legend(loc='lower right')
-    plt.savefig('Accuracy_cnn'+str(width)+version+'.png')
+    plt.savefig('Accuracy_cnn'+str(width)+'.png')
     plt.show()
 
 
     test_loss, test_acc = model.evaluate(X_test,  y_test)
-    print('Model'+str(width)+ version + 'test accuracy:', test_acc)
-    print('Model'+str(width)+version+'test_loss:', test_loss)
+    print('Model'+str(width) + 'test accuracy:', test_acc)
+    print('Model'+str(width)+'test_loss:', test_loss)
     
     
 
 
-# In[216]:
+# In[42]:
 
 
-# Train model without cap
-model_128 = simple_cnn(128)
-model_512 = simple_cnn(512)
-train_model(128, model_128, '')
-train_model(512, model_512, '')
+model128 = simple_cnn(128)
+model512 = simple_cnn(512)
+train_model(128, model128)
+train_model(512, model512)
 
 
-# In[ ]:
-
-
-# Train model with cap
-model_128v2 = simple_cnnv2(128)
-model_512v2 = simple_cnnv2(512)
-train_model(128, model_128v2, 'v2')
-train_model(512, model_512v2, 'v2')
-
-
-# In[ ]:
+# In[23]:
 
 
 def calculate_inception_score(model, images, n_split=5, eps=1E-16):
@@ -183,7 +155,7 @@ def calculate_inception_score(model, images, n_split=5, eps=1E-16):
         return is_avg, is_std
 
 
-# In[ ]:
+# In[24]:
 
 
 # calculate frechet inception distance
@@ -206,7 +178,7 @@ def calculate_fid(model, images1, images2):
     return fid
 
 
-# In[ ]:
+# In[25]:
 
 
 def calculate_bins(train_samples, test_samples, k, fname):
@@ -218,7 +190,7 @@ def calculate_bins(train_samples, test_samples, k, fname):
     plt.show()
 
 
-# In[ ]:
+# In[26]:
 
 
 # scale an array of images to a new size
@@ -232,7 +204,7 @@ def scale_images(images, new_shape):
     return np.asarray(images_list)
 
 
-# In[ ]:
+# In[27]:
 
 
 # Resize shapes
@@ -243,7 +215,7 @@ def bin_preprocessing(images):
     return np.array(batch)
 
 
-# In[ ]:
+# In[50]:
 
 
 def main():
@@ -257,44 +229,28 @@ def main():
     with (open('./training_data/scaled_training_data512.pkl', "rb")) as openfile:
         train_images512 = pickle.load(openfile)
         
-    model128v2 = keras.models.load_model('trained_model128v2.h5')   
-    model512v2 = keras.models.load_model('trained_model512v2.h5') 
+
+    model128_fc = keras.models.load_model('trained_model128.h5')   
+    model512_fc = keras.models.load_model('trained_model512.h5') 
     
-    model128 = keras.models.load_model('trained_model128.h5')   
-    model512 = keras.models.load_model('trained_model512.h5') 
-        
-   # calculate inception score for model with positive probs capped [0,1]
-    is_avg128v2, is_std128v2 = calculate_inception_score(model128v2, train_images128)
-    is_avg_t128v2, is_std_t128v2 = calculate_inception_score(model128v2, test_images128)
-    is_avg512v2, is_std512v2 = calculate_inception_score(model512v2, train_images512)
-    is_avg_t512v2, is_std_t512v2 = calculate_inception_score(model512v2, test_images512)
+    # Remove classification layers for features
+    model128 = models.Sequential(model128_fc.layers[:-1])
+    model512 = models.Sequential(model512_fc.layers[:-1])    
     
-    print('TRAIN128v2 Inception score avg:', is_avg128v2, "Inception score std:", is_std128v2)
-    print('TEST128v2 Inception score avg:', is_avg_t128v2, "Inception score std:", is_std_t128v2)
-    print('TRAIN128v2 Inception score avg:', is_avg512v2, "Inception score std:", is_std512v2)
-    print('TEST128v2 Inception score avg:', is_avg_t512v2, "Inception score std:", is_std_t512v2)
-    print("---------------")
-    fid128v2 = calculate_fid(model128v2, train_images128, test_images128)
-    print('FID score 128v2: %.3f' % fid128v2)
-    fid512v2 = calculate_fid(model512v2, train_images512, test_images512)
-    print('FID score 512v2: %.3f' % fid512v2)
-    print("---------------")
     
-    # Model without cap
-    
-    is_avg128, is_std128 = calculate_inception_score(model128, train_images128)
-    is_avg_t128, is_std_t128 = calculate_inception_score(model128, test_images128)
-    is_avg512, is_std512 = calculate_inception_score(model512, train_images512)
-    is_avg_t512, is_std_t512 = calculate_inception_score(model512, test_images512)
+    is_avg128, is_std128 = calculate_inception_score(model128_fc, train_images128) # TRAIN128 Inception score avg: 1.2960029 Inception score std: 0.17804159
+    is_avg_t128, is_std_t128 = calculate_inception_score(model128_fc, test_images128) # TEST128 Inception score avg: 1.5592765 Inception score std: 0.014011001
+    is_avg512, is_std512 = calculate_inception_score(model512_fc, train_images512) # TRAIN512 Inception score avg: 1.497485 Inception score std: 0.3744376
+    is_avg_t512, is_std_t512 = calculate_inception_score(model512_fc, test_images512) # TEST512 Inception score avg: 1.000068 Inception score std: 0.0001033097
 
     print('TRAIN128 Inception score avg:', is_avg128, "Inception score std:", is_std128)
     print('TEST128 Inception score avg:', is_avg_t128, "Inception score std:", is_std_t128)
     print('TRAIN512 Inception score avg:', is_avg512, "Inception score std:", is_std512)
     print('TEST512 Inception score avg:', is_avg_t512, "Inception score std:", is_std_t512)
     print("---------------")
-    fid128 = calculate_fid(model128, train_images128, test_images128)
+    fid128 = calculate_fid(model128, train_images128, test_images128) #FID score 128: 36.925
     print('FID score 128: %.3f' % fid128)
-    fid512 = calculate_fid(model512, train_images512, test_images512)
+    fid512 = calculate_fid(model512, train_images512, test_images512) # FID score 512: 248.642
     print('FID score 512: %.3f' % fid512)
     print("---------------")
 
@@ -318,7 +274,7 @@ def main():
        
 
 
-# In[ ]:
+# In[51]:
 
 
 if __name__ == '__main__':
