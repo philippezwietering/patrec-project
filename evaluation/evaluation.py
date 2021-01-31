@@ -39,7 +39,6 @@ def simple_cnn(width):
     model.add(layers.Conv2D(64, (3, 3), activation='relu'))
     model.add(layers.Flatten())
     model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(10, activation='relu'))
     model.add(layers.Dense(3, activation='softmax'))
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
