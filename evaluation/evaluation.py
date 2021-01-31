@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[19]:
+# In[1]:
 
 
 import os
@@ -27,7 +27,7 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
 
-# In[43]:
+# In[2]:
 
 
 def simple_cnn(width):
@@ -46,7 +46,7 @@ def simple_cnn(width):
     return model
 
 
-# In[21]:
+# In[3]:
 
 
 def train_model(width, model):
@@ -112,16 +112,16 @@ def train_model(width, model):
     
 
 
-# In[42]:
+# In[4]:
 
 
-model128 = simple_cnn(128)
-model512 = simple_cnn(512)
-train_model(128, model128)
-train_model(512, model512)
+# model128 = simple_cnn(128)
+# model512 = simple_cnn(512)
+# train_model(128, model128)
+# train_model(512, model512)
 
 
-# In[23]:
+# In[5]:
 
 
 def calculate_inception_score(model, images, n_split=5, eps=1E-16):
@@ -154,7 +154,7 @@ def calculate_inception_score(model, images, n_split=5, eps=1E-16):
         return is_avg, is_std
 
 
-# In[24]:
+# In[6]:
 
 
 # calculate frechet inception distance
@@ -177,7 +177,7 @@ def calculate_fid(model, images1, images2):
     return fid
 
 
-# In[25]:
+# In[7]:
 
 
 def calculate_bins(train_samples, test_samples, k, fname):
@@ -189,7 +189,7 @@ def calculate_bins(train_samples, test_samples, k, fname):
     plt.show()
 
 
-# In[26]:
+# In[8]:
 
 
 # scale an array of images to a new size
@@ -203,7 +203,7 @@ def scale_images(images, new_shape):
     return np.asarray(images_list)
 
 
-# In[27]:
+# In[9]:
 
 
 # Resize shapes
@@ -214,7 +214,14 @@ def bin_preprocessing(images):
     return np.array(batch)
 
 
-# In[50]:
+# In[13]:
+
+
+with (open('./training_data/scaled_training_data128.pkl', "rb")) as openfile:
+    train_images128 = pickle.load(openfile)
+
+
+# In[27]:
 
 
 def main():
@@ -232,14 +239,17 @@ def main():
     model128_fc = keras.models.load_model('trained_model128.h5')   
     model512_fc = keras.models.load_model('trained_model512.h5') 
     
+    
     # Remove classification layers for features
     model128 = models.Sequential(model128_fc.layers[:-1])
     model512 = models.Sequential(model512_fc.layers[:-1])    
     
-    
-    is_avg128, is_std128 = calculate_inception_score(model128_fc, train_images128) # TRAIN128 Inception score avg: 1.2960029 Inception score std: 0.17804159
+    X_train128, X_val128 = train_test_split(train_images128, test_size=0.33, random_state=42)
+    X_train512, X_val512 = train_test_split(train_images512, test_size=0.33, random_state=42)
+     
+    is_avg128, is_std128 = calculate_inception_score(model128_fc, X_val128) # TRAIN128 1.4650955 Inception score std: 0.004975435
     is_avg_t128, is_std_t128 = calculate_inception_score(model128_fc, test_images128) # TEST128 Inception score avg: 1.5592765 Inception score std: 0.014011001
-    is_avg512, is_std512 = calculate_inception_score(model512_fc, train_images512) # TRAIN512 Inception score avg: 1.497485 Inception score std: 0.3744376
+    is_avg512, is_std512 = calculate_inception_score(model512_fc, X_val512) # TRAIN512 Inception score avg: 1.8127365 Inception score std: 0.018795773
     is_avg_t512, is_std_t512 = calculate_inception_score(model512_fc, test_images512) # TEST512 Inception score avg: 1.000068 Inception score std: 0.0001033097
 
     print('TRAIN128 Inception score avg:', is_avg128, "Inception score std:", is_std128)
@@ -247,6 +257,12 @@ def main():
     print('TRAIN512 Inception score avg:', is_avg512, "Inception score std:", is_std512)
     print('TEST512 Inception score avg:', is_avg_t512, "Inception score std:", is_std_t512)
     print("---------------")
+    
+    fid128X = calculate_fid(model128, X_train128, X_val128) #FIDX score 128: 0.227
+    print('FID score 128X: %.3f' % fid128X)
+    fid512X = calculate_fid(model512, X_train512, X_val512) # FIDX score 512: 6.098
+    print('FID score 512X: %.3f' % fid512X)
+    
     fid128 = calculate_fid(model128, train_images128, test_images128) #FID score 128: 36.925
     print('FID score 128: %.3f' % fid128)
     fid512 = calculate_fid(model512, train_images512, test_images512) # FID score 512: 248.642
@@ -273,9 +289,15 @@ def main():
        
 
 
-# In[51]:
+# In[28]:
 
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+
 
