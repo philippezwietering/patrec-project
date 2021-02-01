@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[35]:
 
 
 import os
@@ -27,7 +27,7 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
 
-# In[2]:
+# In[36]:
 
 
 def simple_cnn(width):
@@ -46,7 +46,7 @@ def simple_cnn(width):
     return model
 
 
-# In[3]:
+# In[37]:
 
 
 def train_model(width, model):
@@ -112,7 +112,7 @@ def train_model(width, model):
     
 
 
-# In[4]:
+# In[38]:
 
 
 # model128 = simple_cnn(128)
@@ -121,7 +121,7 @@ def train_model(width, model):
 # train_model(512, model512)
 
 
-# In[5]:
+# In[39]:
 
 
 def calculate_inception_score(model, images, n_split=5, eps=1E-16):
@@ -154,7 +154,7 @@ def calculate_inception_score(model, images, n_split=5, eps=1E-16):
         return is_avg, is_std
 
 
-# In[6]:
+# In[40]:
 
 
 # calculate frechet inception distance
@@ -177,7 +177,7 @@ def calculate_fid(model, images1, images2):
     return fid
 
 
-# In[7]:
+# In[41]:
 
 
 def calculate_bins(train_samples, test_samples, k, fname):
@@ -189,7 +189,7 @@ def calculate_bins(train_samples, test_samples, k, fname):
     plt.show()
 
 
-# In[8]:
+# In[42]:
 
 
 # scale an array of images to a new size
@@ -203,7 +203,7 @@ def scale_images(images, new_shape):
     return np.asarray(images_list)
 
 
-# In[9]:
+# In[43]:
 
 
 # Resize shapes
@@ -214,14 +214,7 @@ def bin_preprocessing(images):
     return np.array(batch)
 
 
-# In[13]:
-
-
-with (open('./training_data/scaled_training_data128.pkl', "rb")) as openfile:
-    train_images128 = pickle.load(openfile)
-
-
-# In[27]:
+# In[47]:
 
 
 def main():
@@ -247,9 +240,9 @@ def main():
     X_train128, X_val128 = train_test_split(train_images128, test_size=0.33, random_state=42)
     X_train512, X_val512 = train_test_split(train_images512, test_size=0.33, random_state=42)
      
-    is_avg128, is_std128 = calculate_inception_score(model128_fc, X_val128) # TRAIN128 1.4650955 Inception score std: 0.004975435
+    is_avg128, is_std128 = calculate_inception_score(model128_fc, X_val128[:2000]) # TRAIN128 1.4650955 Inception score std: 0.004975435
     is_avg_t128, is_std_t128 = calculate_inception_score(model128_fc, test_images128) # TEST128 Inception score avg: 1.5592765 Inception score std: 0.014011001
-    is_avg512, is_std512 = calculate_inception_score(model512_fc, X_val512) # TRAIN512 Inception score avg: 1.8127365 Inception score std: 0.018795773
+    is_avg512, is_std512 = calculate_inception_score(model512_fc, X_val512[:200]) # TRAIN512 Inception score avg: 1.8127365 Inception score std: 0.018795773
     is_avg_t512, is_std_t512 = calculate_inception_score(model512_fc, test_images512) # TEST512 Inception score avg: 1.000068 Inception score std: 0.0001033097
 
     print('TRAIN128 Inception score avg:', is_avg128, "Inception score std:", is_std128)
@@ -258,18 +251,37 @@ def main():
     print('TEST512 Inception score avg:', is_avg_t512, "Inception score std:", is_std_t512)
     print("---------------")
     
-    fid128X = calculate_fid(model128, X_train128, X_val128) #FIDX score 128: 0.227
+    fid128X = calculate_fid(model128, X_train128, X_val128[:2000]) #FIDX score 128: 0.227
     print('FID score 128X: %.3f' % fid128X)
-    fid512X = calculate_fid(model512, X_train512, X_val512) # FIDX score 512: 6.098
+    fid512X = calculate_fid(model512, X_train512, X_val512[:200]) # FIDX score 512: 6.098
     print('FID score 512X: %.3f' % fid512X)
     
-    fid128 = calculate_fid(model128, train_images128, test_images128) #FID score 128: 36.925
-    print('FID score 128: %.3f' % fid128)
-    fid512 = calculate_fid(model512, train_images512, test_images512) # FID score 512: 248.642
-    print('FID score 512: %.3f' % fid512)
-    print("---------------")
+#     fid128 = calculate_fid(model128, train_images128, test_images128) #FID score 128: 36.925
+#     print('FID score 128: %.3f' % fid128)
+#     fid512 = calculate_fid(model512, train_images512, test_images512) # FID score 512: 248.642
+#     print('FID score 512: %.3f' % fid512)
+#     print("---------------")
 
     # Calculate NDB
+    X_train_bins128 = bin_preprocessing(X_train128)
+    X_test_bins128 = bin_preprocessing(X_val128[:2000])   
+    
+    X_train_bins512 = bin_preprocessing(X_train512)
+    X_test_bins512 = bin_preprocessing(X_val512[:200])    
+    
+    calculate_bins(X_train_bins128, X_test_bins128, 10, 'Xndb128') # NDB = 0 NDB/K = 0.0 , JS = 0.00030114696948060665
+    calculate_bins(X_train_bins512, X_test_bins512, 10, 'Xndb512') # NDB = 0 NDB/K = 0.0 , JS = 0.002305073461703629
+    
+    calculate_bins(X_train_bins128, X_test_bins128, 50, 'Xndb128') # NDB = 3 NDB/K = 0.06 , JS = 0.0032261136221497814
+    calculate_bins(X_train_bins512, X_test_bins512, 50, 'Xndb512') # NDB = 1 NDB/K = 0.02 , JS = 0.0065002510446860555
+    
+    calculate_bins(X_train_bins128, X_test_bins128, 100, 'Xndb128') # NDB = 2 NDB/K = 0.02 , JS = 0.005063471466338541
+    calculate_bins(X_train_bins512, X_test_bins512, 100, 'Xndb512') # NDB = 3 NDB/K = 0.03 , JS = 0.02544914328090541 
+    
+    calculate_bins(X_train_bins128, X_test_bins128, 200, 'Xndb128') # NDB = 8 NDB/K = 0.04 , JS = 0.009228856394977109
+    calculate_bins(X_train_bins512, X_test_bins512, 200, 'Xndb512') # NDB = 3 NDB/K = 0.015 , JS = 0.03345394759694796   
+         
+    
     train_bins128 = bin_preprocessing(train_images128)
     test_bins128 = bin_preprocessing(test_images128) # 2000 generated samples
     train_bins512 = bin_preprocessing(train_images512)
@@ -289,7 +301,7 @@ def main():
        
 
 
-# In[28]:
+# In[48]:
 
 
 if __name__ == '__main__':
