@@ -256,11 +256,11 @@ def main():
     fid512X = calculate_fid(model512, X_train512, X_val512[:200]) # FIDX score 512: 6.098
     print('FID score 512X: %.3f' % fid512X)
     
-#     fid128 = calculate_fid(model128, train_images128, test_images128) #FID score 128: 36.925
-#     print('FID score 128: %.3f' % fid128)
-#     fid512 = calculate_fid(model512, train_images512, test_images512) # FID score 512: 248.642
-#     print('FID score 512: %.3f' % fid512)
-#     print("---------------")
+    fid128 = calculate_fid(model128, train_images128, test_images128) #FID score 128: 36.925
+    print('FID score 128: %.3f' % fid128)
+    fid512 = calculate_fid(model512, train_images512, test_images512) # FID score 512: 248.642
+    print('FID score 512: %.3f' % fid512)
+    print("---------------")
 
     # Calculate NDB
     X_train_bins128 = bin_preprocessing(X_train128)
